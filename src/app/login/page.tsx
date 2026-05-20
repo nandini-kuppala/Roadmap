@@ -146,13 +146,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo hint */}
-          <div className="mt-4 p-3 bg-surface-2 rounded-lg border border-border">
-            <p className="text-xs text-text-muted text-center">
-              Admin: <span className="text-accent font-mono">admin@placement.com</span> / <span className="font-mono">Admin@123</span>
-            </p>
-          </div>
-
           <p className="text-center text-sm text-text-muted mt-5">
             Don&apos;t have an account?{' '}
             <Link href="/register" className="text-accent hover:text-accent-light font-medium transition-colors">

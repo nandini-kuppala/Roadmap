@@ -14,7 +14,7 @@ export default function StudentChatPage() {
     if (status === 'unauthenticated') router.push('/login');
   }, [status, router]);
 
-  if (status === 'loading') {
+  if (status === 'loading' || status === 'unauthenticated') {
     return (
       <div className="flex h-screen bg-background">
         <div className="w-64 bg-surface border-r border-border" />

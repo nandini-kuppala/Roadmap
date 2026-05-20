@@ -14,7 +14,7 @@ interface Message {
     email: string;
     role: string;
     profilePicture?: string;
-  };
+  } | null;
   receiverId?: { _id: string; name: string } | null;
 }
 
@@ -29,26 +29,32 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const lastMessageIdRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  const currentUserId = (session?.user as { id: string })?.id;
+  const currentUserId = (session?.user as { id?: string } | undefined)?.id;
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
-  const fetchMessages = useCallback(async (isInitial = false) => {
+  const fetchMessages = useCallback(async (isInitial: boolean) => {
     try {
       const base = withUserId ? `/api/chat?with=${withUserId}` : '/api/chat';
 
       if (isInitial) {
         setIsLoading(true);
+        setError(null);
         const res = await fetch(base);
-        if (!res.ok) return;
+        if (!res.ok) {
+          setError(res.status === 401 ? 'Please log in to view messages.' : 'Failed to load messages.');
+          setIsLoading(false);
+          return;
+        }
         const data = await res.json();
         const msgs: Message[] = data.messages || [];
         setMessages(msgs);
@@ -58,7 +64,7 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
         setIsLoading(false);
         setTimeout(scrollToBottom, 100);
       } else {
-        // Polling — never show loading spinner, just append new messages
+        // Polling — silent, no loading state
         const url = lastMessageIdRef.current
           ? `${base}&after=${lastMessageIdRef.current}`
           : base;
@@ -68,25 +74,27 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
         const newMsgs: Message[] = data.messages || [];
         if (newMsgs.length > 0) {
           setMessages((prev) => {
-            // Deduplicate by _id
             const existingIds = new Set(prev.map((m) => m._id));
             const fresh = newMsgs.filter((m) => !existingIds.has(m._id));
             if (fresh.length === 0) return prev;
             lastMessageIdRef.current = newMsgs[newMsgs.length - 1]._id;
-            setTimeout(scrollToBottom, 50);
             return [...prev, ...fresh];
           });
+          setTimeout(scrollToBottom, 50);
         }
       }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      if (isInitial) setIsLoading(false);
+    } catch {
+      if (isInitial) {
+        setError('Could not connect. Please check your connection.');
+        setIsLoading(false);
+      }
     }
-  }, [withUserId]);
+  }, [withUserId, scrollToBottom]);
 
   useEffect(() => {
     lastMessageIdRef.current = null;
     setMessages([]);
+    setError(null);
     fetchMessages(true);
 
     pollingRef.current = setInterval(() => {
@@ -116,15 +124,13 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
       if (res.ok) {
         const data = await res.json();
         setMessages((prev) => {
-          const exists = prev.some((m) => m._id === data.message._id);
-          if (exists) return prev;
+          if (prev.some((m) => m._id === data.message._id)) return prev;
           lastMessageIdRef.current = data.message._id;
           return [...prev, data.message];
         });
         setTimeout(scrollToBottom, 50);
       }
-    } catch (error) {
-      console.error('Error sending message:', error);
+    } catch {
       setNewMessage(content);
     } finally {
       setIsSending(false);
@@ -141,6 +147,25 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
           <span className="text-text-muted text-sm">Loading messages...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center gap-3 text-center px-6">
+          <svg className="w-8 h-8 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-text-secondary text-sm">{error}</p>
+          <button
+            onClick={() => fetchMessages(true)}
+            className="text-xs text-accent hover:underline"
+          >
+            Try again
+          </button>
         </div>
       </div>
     );
@@ -179,6 +204,7 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
           </div>
         ) : (
           messages.map((message) => {
+            if (!message.senderId) return null;
             const isOwnMessage = message.senderId._id === currentUserId;
             return (
               <div key={message._id} className={cn('flex gap-2', isOwnMessage ? 'flex-row-reverse' : 'flex-row')}>
@@ -187,7 +213,7 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={message.senderId.profilePicture} alt={message.senderId.name} className="w-full h-full object-cover" />
                   ) : (
-                    getInitials(message.senderId.name)
+                    getInitials(message.senderId.name || '?')
                   )}
                 </div>
                 <div className={cn('max-w-[75%] space-y-1', isOwnMessage && 'items-end flex flex-col')}>

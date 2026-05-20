@@ -318,6 +318,50 @@ const resources = [
     category: 'Interview Prep',
     description: 'Free peer-to-peer mock technical interviews. Practice with real interviewers.',
   },
+
+  // ─── Your Drive Resources ────────────────────────────────────
+  {
+    title: 'Git Cheat Sheet',
+    url: 'https://drive.google.com/file/d/1Gj9QGi-b8Lv8cNUEMVIDPjBR8tEXVHff/view?usp=sharing',
+    type: 'file',
+    category: 'DSA',
+    description: 'Quick reference cheat sheet for all essential Git commands — branching, merging, rebasing and more.',
+  },
+  {
+    title: 'DSA Time Complexity Cheat Sheet',
+    url: 'https://drive.google.com/file/d/1yGY3VDepgAX6n7R1-KW_Jhn_GMkKmOTN/view?usp=sharing',
+    type: 'file',
+    category: 'DSA',
+    description: 'Time and space complexity reference sheet for all major DSA patterns and algorithms.',
+  },
+  {
+    title: 'OOP Short Notes',
+    url: 'https://drive.google.com/file/d/13_ze__A0TBBq2Ro0M9uEmmUsgFFWqqsF/view?usp=sharing',
+    type: 'file',
+    category: 'OOP',
+    description: 'Concise OOP short notes — perfect for quick revision before interviews.',
+  },
+  {
+    title: 'OOP Detailed Notes with Practice Examples',
+    url: 'https://drive.google.com/file/d/1BGmwCrJ4yAvTxJpjV-RAhfUG0wlrz3fD/view?usp=sharing',
+    type: 'file',
+    category: 'OOP',
+    description: 'Detailed OOP notes with practice examples covering all concepts in depth.',
+  },
+  {
+    title: 'MongoDB Notes',
+    url: 'https://drive.google.com/file/d/12yo4ZLxCOXCvPI7NdEtcXAsrZRm3iHjQ/view?usp=sharing',
+    type: 'file',
+    category: 'DBMS',
+    description: 'Comprehensive MongoDB notes covering CRUD, aggregation, indexing, and schema design.',
+  },
+  {
+    title: 'ML Notes – Krish Naik',
+    url: 'https://drive.google.com/file/d/15BUpmQPF38GzNekts428UFouIgHAGigW/view?usp=sharing',
+    type: 'file',
+    category: 'Interview Prep',
+    description: 'Machine Learning notes based on Krish Naik\'s popular ML course — concepts, algorithms, and use cases.',
+  },
 ];
 
 async function seedResources() {

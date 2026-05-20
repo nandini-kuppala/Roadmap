@@ -28,9 +28,9 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
   const { data: session } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [lastMessageId, setLastMessageId] = useState<string | null>(null);
+  const lastMessageIdRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -41,56 +41,62 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const fetchMessages = useCallback(
-    async (isInitial = false) => {
-      try {
-        const url = withUserId
-          ? `/api/chat?with=${withUserId}`
-          : '/api/chat';
+  const fetchMessages = useCallback(async (isInitial = false) => {
+    try {
+      const base = withUserId ? `/api/chat?with=${withUserId}` : '/api/chat';
 
-        if (!isInitial && lastMessageId) {
-          const res = await fetch(`${url}&after=${lastMessageId}`);
-          if (!res.ok) return;
-          const data = await res.json();
-          if (data.messages && data.messages.length > 0) {
-            setMessages((prev) => [...prev, ...data.messages]);
-            setLastMessageId(data.messages[data.messages.length - 1]._id);
-            scrollToBottom();
-          }
-        } else {
-          setIsLoading(true);
-          const res = await fetch(url);
-          if (!res.ok) return;
-          const data = await res.json();
-          setMessages(data.messages || []);
-          if (data.messages?.length > 0) {
-            setLastMessageId(data.messages[data.messages.length - 1]._id);
-          }
-          setIsLoading(false);
-          setTimeout(scrollToBottom, 100);
+      if (isInitial) {
+        setIsLoading(true);
+        const res = await fetch(base);
+        if (!res.ok) return;
+        const data = await res.json();
+        const msgs: Message[] = data.messages || [];
+        setMessages(msgs);
+        if (msgs.length > 0) {
+          lastMessageIdRef.current = msgs[msgs.length - 1]._id;
         }
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-        if (isInitial) setIsLoading(false);
+        setIsLoading(false);
+        setTimeout(scrollToBottom, 100);
+      } else {
+        // Polling — never show loading spinner, just append new messages
+        const url = lastMessageIdRef.current
+          ? `${base}&after=${lastMessageIdRef.current}`
+          : base;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        const newMsgs: Message[] = data.messages || [];
+        if (newMsgs.length > 0) {
+          setMessages((prev) => {
+            // Deduplicate by _id
+            const existingIds = new Set(prev.map((m) => m._id));
+            const fresh = newMsgs.filter((m) => !existingIds.has(m._id));
+            if (fresh.length === 0) return prev;
+            lastMessageIdRef.current = newMsgs[newMsgs.length - 1]._id;
+            setTimeout(scrollToBottom, 50);
+            return [...prev, ...fresh];
+          });
+        }
       }
-    },
-    [withUserId, lastMessageId]
-  );
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      if (isInitial) setIsLoading(false);
+    }
+  }, [withUserId]);
 
   useEffect(() => {
+    lastMessageIdRef.current = null;
+    setMessages([]);
     fetchMessages(true);
-    // Poll every 3 seconds
+
     pollingRef.current = setInterval(() => {
       fetchMessages(false);
     }, 3000);
 
     return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
+      if (pollingRef.current) clearInterval(pollingRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [withUserId]);
+  }, [fetchMessages]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,21 +110,22 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content,
-          receiverId: withUserId || null,
-        }),
+        body: JSON.stringify({ content, receiverId: withUserId || null }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        setMessages((prev) => [...prev, data.message]);
-        setLastMessageId(data.message._id);
+        setMessages((prev) => {
+          const exists = prev.some((m) => m._id === data.message._id);
+          if (exists) return prev;
+          lastMessageIdRef.current = data.message._id;
+          return [...prev, data.message];
+        });
         setTimeout(scrollToBottom, 50);
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      setNewMessage(content); // Restore on error
+      setNewMessage(content);
     } finally {
       setIsSending(false);
       inputRef.current?.focus();
@@ -141,7 +148,6 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       {withUserName && (
         <div className="px-4 py-3 border-b border-border flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-blue-500 flex items-center justify-center text-white text-xs font-bold">
@@ -158,7 +164,6 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
         </div>
       )}
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
@@ -169,27 +174,18 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
             </div>
             <div>
               <p className="text-text-secondary font-medium">No messages yet</p>
-              <p className="text-text-muted text-sm">
-                {placeholder || 'Start the conversation!'}
-              </p>
+              <p className="text-text-muted text-sm">{placeholder || 'Start the conversation!'}</p>
             </div>
           </div>
         ) : (
           messages.map((message) => {
             const isOwnMessage = message.senderId._id === currentUserId;
             return (
-              <div
-                key={message._id}
-                className={cn('flex gap-2', isOwnMessage ? 'flex-row-reverse' : 'flex-row')}
-              >
+              <div key={message._id} className={cn('flex gap-2', isOwnMessage ? 'flex-row-reverse' : 'flex-row')}>
                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-accent to-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden">
                   {message.senderId.profilePicture ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={message.senderId.profilePicture}
-                      alt={message.senderId.name}
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={message.senderId.profilePicture} alt={message.senderId.name} className="w-full h-full object-cover" />
                   ) : (
                     getInitials(message.senderId.name)
                   )}
@@ -197,22 +193,16 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
                 <div className={cn('max-w-[75%] space-y-1', isOwnMessage && 'items-end flex flex-col')}>
                   <div className="flex items-center gap-2">
                     {!isOwnMessage && (
-                      <span className="text-xs font-medium text-text-secondary">
-                        {message.senderId.name}
-                      </span>
+                      <span className="text-xs font-medium text-text-secondary">{message.senderId.name}</span>
                     )}
-                    <span className="text-xs text-text-muted">
-                      {formatRelativeTime(message.createdAt)}
-                    </span>
+                    <span className="text-xs text-text-muted">{formatRelativeTime(message.createdAt)}</span>
                   </div>
-                  <div
-                    className={cn(
-                      'px-3 py-2 rounded-xl text-sm break-words',
-                      isOwnMessage
-                        ? 'bg-accent text-background rounded-tr-sm'
-                        : 'bg-surface-2 text-text-primary border border-border rounded-tl-sm'
-                    )}
-                  >
+                  <div className={cn(
+                    'px-3 py-2 rounded-xl text-sm break-words',
+                    isOwnMessage
+                      ? 'bg-accent text-background rounded-tr-sm'
+                      : 'bg-surface-2 text-text-primary border border-border rounded-tl-sm'
+                  )}>
                     {message.content}
                   </div>
                 </div>
@@ -223,7 +213,6 @@ export default function ChatWindow({ withUserId, withUserName, placeholder }: Ch
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <form onSubmit={sendMessage} className="p-4 border-t border-border">
         <div className="flex gap-2">
           <input

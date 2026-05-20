@@ -173,8 +173,8 @@ export default function CalendarPage() {
                 <div className="bg-surface border border-border rounded-xl p-5 sticky top-0 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className={`text-xs font-medium ${getPhaseColor(selectedDayPlan.phase)}`}>
-                        {selectedDayPlan.phase}
+                      <span className={`text-xs font-semibold ${getPhaseColor(selectedDayPlan.phase)}`}>
+                        {selectedDayPlan.phase.replace(/^Phase \d+ [—\-] /, '')}
                       </span>
                       <h3 className="font-bold text-text-primary mt-0.5">Day {selectedDay}</h3>
                     </div>

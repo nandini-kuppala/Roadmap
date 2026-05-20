@@ -61,10 +61,10 @@ export default function DayCard({
       {/* Day Header */}
       <div className="flex items-start justify-between">
         <div>
-          <span className={cn('text-xs font-medium', getPhaseColor(dayPlan.phase))}>
-            {dayPlan.phase}
+          <span className={cn('inline-block text-sm font-semibold px-3 py-1 rounded-full', getPhaseColor(dayPlan.phase))}>
+            {dayPlan.phase.replace(/^Phase \d+ [—\-] /, '')}
           </span>
-          <h2 className="text-xl font-bold text-text-primary mt-1">{dayPlan.theoryTitle}</h2>
+          <h2 className="text-xl font-bold text-text-primary mt-2">{dayPlan.theoryTitle}</h2>
         </div>
         {isCompleted && (
           <div className="flex items-center gap-1.5 bg-success/15 border border-success/30 rounded-full px-3 py-1.5">

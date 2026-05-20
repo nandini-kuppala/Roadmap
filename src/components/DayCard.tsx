@@ -59,15 +59,15 @@ export default function DayCard({
   return (
     <div className={cn('space-y-4', locked && 'opacity-60 pointer-events-none')}>
       {/* Day Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <span className={cn('inline-block text-sm font-semibold px-3 py-1 rounded-full', getPhaseColor(dayPlan.phase))}>
+          <h1 className={cn('text-3xl font-extrabold tracking-tight', getPhaseColor(dayPlan.phase))}>
             {dayPlan.phase.replace(/^Phase \d+ [—\-] /, '')}
-          </span>
-          <h2 className="text-xl font-bold text-text-primary mt-2">{dayPlan.theoryTitle}</h2>
+          </h1>
+          <h2 className="text-lg font-semibold text-text-primary mt-1 leading-snug">{dayPlan.theoryTitle}</h2>
         </div>
         {isCompleted && (
-          <div className="flex items-center gap-1.5 bg-success/15 border border-success/30 rounded-full px-3 py-1.5">
+          <div className="flex-shrink-0 flex items-center gap-1.5 bg-success/15 border border-success/30 rounded-full px-3 py-1.5">
             <svg className="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
             </svg>
@@ -106,14 +106,41 @@ export default function DayCard({
           </label>
         </div>
 
-        <ul className="space-y-2">
+        {/* Description */}
+        {dayPlan.theoryDescription && (
+          <p className="text-sm text-text-secondary leading-relaxed mb-4 pb-4 border-b border-border/60">
+            {dayPlan.theoryDescription}
+          </p>
+        )}
+
+        {/* Topics */}
+        <div className="space-y-2.5 mb-4">
           {dayPlan.theoryTopics.map((topic, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-text-secondary">
-              <span className="text-accent mt-0.5 flex-shrink-0">→</span>
-              {topic}
-            </li>
+            <div key={i} className="flex items-start gap-3">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-accent/15 text-accent text-[10px] font-bold flex items-center justify-center mt-0.5">
+                {i + 1}
+              </span>
+              <p className="text-sm text-text-secondary leading-relaxed">{topic}</p>
+            </div>
           ))}
-        </ul>
+        </div>
+
+        {/* Key Concepts */}
+        {dayPlan.keyConcepts && dayPlan.keyConcepts.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border/60">
+            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2.5">Also know</p>
+            <div className="flex flex-wrap gap-1.5">
+              {dayPlan.keyConcepts.map((concept, i) => (
+                <span
+                  key={i}
+                  className="text-xs px-2.5 py-1 bg-surface-2 border border-border text-text-secondary rounded-full hover:border-accent/40 hover:text-accent transition-colors cursor-default"
+                >
+                  {concept}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Resources */}
         {dayPlan.resources.length > 0 && (
